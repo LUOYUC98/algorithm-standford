@@ -58,7 +58,7 @@ void free_float_matrix(float_matrix_t* A){
 }
 
 void free_int_matrix(int_matrix_t* A){
-  for(unsigned long long i = 0; i < A->ho; i++){
+  for(unsigned long long i = 0; i < A->ve; i++){
     free(A->arr[i]);
   }
   free(A->arr);
