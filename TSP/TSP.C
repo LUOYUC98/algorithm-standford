@@ -1,100 +1,182 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<math.h>
+#include<string.h>
+#include<assert.h>
 #include "common.h"
 
-
-
-
-float_matrix_t* float_matrix_init(unsigned long long ho, unsigned long long ve){
-  float_matrix_t* float_matrix = (float_matrix_t*)malloc(sizeof(float_matrix_t));
-  float_matrix->arr = (float**)malloc(sizeof(float*)*ve);
-  for(unsigned long long i = 0; i<ve; i++){
-    float_matrix->arr[i] = (float*)malloc(sizeof(float)*ho);
-  }
-  float_matrix->ho = ho;
-  float_matrix->ve = ve;
-  return float_matrix;
+float distance(float a, float b, float x, float y){
+  return sqrt((a-x)*(a-x)+(b-y)*(b-y));
 }
 
-int_matrix_t* int_matrix_init(unsigned long long ho, unsigned long long ve){
-  int_matrix_t* int_matrix = (int_matrix_t*)malloc(sizeof(int_matrix_t));
-  int_matrix->arr = (int**)malloc(sizeof(int*)*ve);
-  for(unsigned long long i = 0; i<ve; i++){
-    int_matrix->arr[i] = (int*)malloc(sizeof(int)*ho);
+int max(int a, int b){
+  if(a > b){
+    return a;
   }
-  int_matrix->ho = ho;
-  int_matrix->ve = ve;
-  return int_matrix;
+  return b;
 }
 
 
-void float_matrix_cpy(float_matrix_t* A, float_matrix_t* B){
-  for(long i = 0; i<B->ve; i++){
-    for(long j = 0; j<B->ho; j++){
-      A->arr[i][j] = B->arr[i][j];
+long combination(int total, int items){
+  long denom, numer;
+  denom = numer = 1;
+  int big = max(total - items, items);
+  for(int i = big+1; i <= total; i++){
+    numer *= i;
+  }
+  for(int i = 2; i <= total - big; i++){
+    denom *= i;
+  }
+  //printf("C(%d, %d) = %li\n", total, items, numer/denom);
+  return numer/denom;
+
+}
+
+
+
+float_matrix_t* city_distance(float_matrix_t* matrix){
+  float_matrix_t* city_dis = float_matrix_init(matrix->ho, matrix->ho);
+  for(int i = 0; i < matrix->ho; i++){
+    for(int j = 0; j < matrix->ho; j++){
+      city_dis->arr[i][j] =  distance(matrix->arr[0][i], matrix->arr[1][i], matrix->arr[0][j], matrix->arr[1][j]);
     }
   }
+  return city_dis;
 }
 
-int bi_arr_min(int ho, int ve, int** A){
-  int min = INFINITY;
-  for(int i = 0; i<ve; i++){
-    for(int j = 0; j<ho; j++){
-      if(A[i][j]<min&&j!=i){
-        min = A[i][j];
-      }
+
+int_matrix_t* seq_init(float_matrix_t* city_dis){
+  int_matrix_t* path = int_matrix_init(1, city_dis->ve-1);
+  for(int i = 2; i <= city_dis->ve; i++){
+    path->arr[i-2][0] = i;
+  }
+  return path;
+}
+
+
+int_matrix_t* path_generator(int_matrix_t* path, float_matrix_t* city_dis){
+  int_matrix_t* new_path = int_matrix_init(path->ho+1, combination(city_dis->ve-1, path->ho+1));
+  int index = 0;
+  for(int i = 0; i < path->ve; i++){
+    for(int j = path->arr[i][path->ho-1]+1; j <= city_dis->ve; j++){
+      memcpy(new_path->arr[index], path->arr[i], sizeof(int)*path->ho);
+      new_path->arr[index][new_path->ho-1] = j;
+      index++;
+    }
+  }
+  return  new_path;
+}
+
+
+long combo_sum(int from, int successive, int items){
+  long sum = 0;
+  for(int i = 0; i < successive; i++){
+    printf("c(%d,%d)+", from-i, items);
+    sum+=combination(from-i, items);
+  }
+  printf("sum=%li\n", sum);
+  return sum;
+}
+
+
+int get_index(int_matrix_t* path, int*seq, int cities){
+  int jump[path->ho];
+  jump[0] = seq[0] - 2;
+  for(int i = 1; i < path->ho; i++){
+    jump[i] = seq[i] - seq[i-1]-1;
+  }
+  print_int_arr(path->ho, jump);
+  long index;
+  int curr_block, curr_items;
+  index = combo_sum(cities-2, jump[0], path->ho-1);
+  curr_block = cities-2-jump[0];
+  curr_items = path->ho-1;
+
+  for(int i = 1; i < path->ho; i++){
+    index += combo_sum(--curr_block, jump[i], --curr_items);
+    curr_block-= jump[i];
+  }
+  return index;
+}
+
+
+cache_t* init_cache(int_matrix_t* init, float_matrix_t* city_dis){
+  cache_t* cache =(cache_t*)malloc(sizeof(cache_t));
+  cache->cache = float_matrix_init(1, city_dis->ve-1);
+  for(int i = 0; i < cache->cache->ve; i++){
+    cache->cache->arr[i][0] = city_dis->arr[0][i+1];
+  }
+  cache->buffer = float_matrix_init(2, combination(city_dis->ve-1, 2));
+  return cache;
+}
+
+
+
+int equal(int* a, int*b, int len){
+  for(int i = 0; i < len; i++){
+    //printf("a[%d] =%d, b[%d] = %d\n", i,a[i],i,b[i]);
+    if(a[i]!=b[i]){
+      return 0;
+    }
+  }
+  return 1;
+}
+
+float get_final_hop(float_matrix_t* city_dis, int target_index, int* seq, float_matrix_t* prev_val, int_matrix_t* prev_path){
+  int buffer[prev_path->ho];
+  int index = 0;
+  for(int i = 0; i < prev_path->ho+1; i++){
+    if(i == target_index){
+      continue;
+    }
+    buffer[index++] = seq[i];
+  }
+  print_int_arr(prev_path->ho, buffer);
+  index = get_index(prev_path, buffer, city_dis->ve);
+  printf("final index = %d\n", index);
+  assert(equal(prev_path->arr[index], buffer, prev_path->ho));
+  float curr, min = INFINITY;
+  for(int i = 0; i < prev_path->ho; i++){
+    printf("dealig with %d as pernultumate hop:\n", buffer[i]);
+    printf("prev_val->arr[%d][%d] = %f\n", index, i, prev_val->arr[index][i]);
+    printf("city_dis->arr[%d][%d] = %f\n", seq[target_index]-1, buffer[i]-1, city_dis->arr[seq[target_index]-1][buffer[i]-1]);
+
+    if((curr = prev_val->arr[index][i] +city_dis->arr[seq[target_index]-1][buffer[i]-1]) < min){
+      min = curr;
     }
   }
   return min;
 }
 
-void free_float_matrix(float_matrix_t* A){
-  for(unsigned long long i = 0; i < A->ve; i++){
-      free(A->arr[i]);
-  }
-  free(A->arr);
-  free(A);
-}
 
-void free_int_matrix(int_matrix_t* A){
-  for(unsigned long long i = 0; i < A->ho; i++){
-    free(A->arr[i]);
-  }
-  free(A->arr);
-  free(A);
-}
-
-
-
-void print_float_matrix(float_matrix_t* matrix){
-  puts("matrix:\n");
-  for(unsigned long long i = 0; i<matrix->ve; i++){
-    printf("%-2llu: ", i);
-    for(unsigned long long j = 0; j<matrix->ho; j++){
-      printf("%f | ", matrix->arr[i][j]);
+int_matrix_t* transform(cache_t* cache, float_matrix_t* city_dis, int_matrix_t* prev_path){
+  int_matrix_t* new_path = path_generator(prev_path, city_dis);
+  for(long i = 0; i < new_path->ve; i++){
+    for(int j = 0; i < new_path->ho; j++){
+      cache->buffer->arr[i][j] = get_final_hop(city_dis, j, new_path->arr[i], cache->cache, prev_path);
     }
-    putchar('\n');
   }
+  cache->cache = resize(cache->cache, city_dis->ve-1);
+  float_matrix_cpy(cache->cache, cache->buffer);
+  cache->buffer =  resize(cache->buffer, city_dis->ve-1);
+  free_int_matrix(prev_path);
+  return new_path;
 }
 
-
-void print_int_matrix(int_matrix_t* matrix){
-  puts("matrix:\n");
-  printf("hops = %llu, ve = %llu\n", matrix->hops, matrix->ve);
-  for(unsigned long long i = 0; i<matrix->ve; i++){
-    printf("%-2llu: ", i+1);
-    for(unsigned long long j = 0; j<matrix->ho; j++){
-      printf("%d | ", matrix->arr[i][j]);
+float tsp_algo(float_matrix_t* city_dis){
+  int_matrix_t* path = seq_init(city_dis);
+  cache_t* cache = init_cache(path, city_dis);
+  for(int i = 0; i < city_dis->ho-2; i++){
+    path = transform(cache, city_dis, path);
+  }
+  float curr, min = INFINITY;
+  for(int i = 0; i < cache->cache->ho; i++){
+    if((curr = cache->cache->arr[0][i] + city_dis->arr[0][i+1])<min){
+      min = curr;
     }
-    putchar('\n');
   }
+  return min;
 }
 
-float_matrix_t* resize(float_matrix_t* prev, int cities){
-  unsigned long long ho = prev->ho+1;
-  unsigned long long ve = combination(cities, prev->ho+1);
-  float_matrix_t* new_matrix = float_matrix_init(ho, ve);
-  free_float_matrix(prev);
-  return new_matrix;
-}
+
+
