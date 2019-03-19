@@ -27,7 +27,6 @@ long combination(int total, int items){
   for(int i = 2; i <= total - big; i++){
     denom *= i;
   }
-  //printf("C(%d, %d) = %li\n", total, items, numer/denom);
   return numer/denom;
 
 }
@@ -71,10 +70,8 @@ int_matrix_t* path_generator(int_matrix_t* path, float_matrix_t* city_dis){
 long combo_sum(int from, int successive, int items){
   long sum = 0;
   for(int i = 0; i < successive; i++){
-    printf("c(%d,%d)+", from-i, items);
     sum+=combination(from-i, items);
   }
-  printf("sum=%li\n", sum);
   return sum;
 }
 
@@ -85,7 +82,6 @@ int get_index(int_matrix_t* path, int*seq, int cities){
   for(int i = 1; i < path->ho; i++){
     jump[i] = seq[i] - seq[i-1]-1;
   }
-  print_int_arr(path->ho, jump);
   long index;
   int curr_block, curr_items;
   index = combo_sum(cities-2, jump[0], path->ho-1);
@@ -114,7 +110,6 @@ cache_t* init_cache(int_matrix_t* init, float_matrix_t* city_dis){
 
 int equal(int* a, int*b, int len){
   for(int i = 0; i < len; i++){
-    //printf("a[%d] =%d, b[%d] = %d\n", i,a[i],i,b[i]);
     if(a[i]!=b[i]){
       return 0;
     }
@@ -131,16 +126,10 @@ float get_final_hop(float_matrix_t* city_dis, int target_index, int* seq, float_
     }
     buffer[index++] = seq[i];
   }
-  print_int_arr(prev_path->ho, buffer);
   index = get_index(prev_path, buffer, city_dis->ve);
-  printf("final index = %d\n", index);
   assert(equal(prev_path->arr[index], buffer, prev_path->ho));
   float curr, min = INFINITY;
   for(int i = 0; i < prev_path->ho; i++){
-    printf("dealig with %d as pernultumate hop:\n", buffer[i]);
-    printf("prev_val->arr[%d][%d] = %f\n", index, i, prev_val->arr[index][i]);
-    printf("city_dis->arr[%d][%d] = %f\n", seq[target_index]-1, buffer[i]-1, city_dis->arr[seq[target_index]-1][buffer[i]-1]);
-
     if((curr = prev_val->arr[index][i] +city_dis->arr[seq[target_index]-1][buffer[i]-1]) < min){
       min = curr;
     }
@@ -152,7 +141,8 @@ float get_final_hop(float_matrix_t* city_dis, int target_index, int* seq, float_
 int_matrix_t* transform(cache_t* cache, float_matrix_t* city_dis, int_matrix_t* prev_path){
   int_matrix_t* new_path = path_generator(prev_path, city_dis);
   for(long i = 0; i < new_path->ve; i++){
-    for(int j = 0; i < new_path->ho; j++){
+    for(int j = 0; j < new_path->ho; j++){
+      
       cache->buffer->arr[i][j] = get_final_hop(city_dis, j, new_path->arr[i], cache->cache, prev_path);
     }
   }
@@ -175,8 +165,14 @@ float tsp_algo(float_matrix_t* city_dis){
       min = curr;
     }
   }
+  printf("min = %f", min);
   return min;
 }
+
+
+
+
+
 
 
 
