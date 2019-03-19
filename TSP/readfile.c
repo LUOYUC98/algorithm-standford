@@ -1,9 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
-#include<math.h>
 #include "common.h"
-
-
 
 float_matrix_t* read_file(const char* fn){
   FILE* fp = fopen(fn, "r");
@@ -15,3 +12,4 @@ float_matrix_t* read_file(const char* fn){
   }
   return matrix;
 }
+
